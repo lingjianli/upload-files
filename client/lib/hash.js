@@ -3,7 +3,7 @@ self.importScripts('spark-md5.min.js');
 
 // 生成文件 hash
 self.addEventListener('message', function (e) {
-  console.log(e)
+  // console.log(e)
   const { fileChunkList } = e.data;
   const spark = new self.SparkMD5.ArrayBuffer();
   let percentage = 0;
@@ -16,7 +16,7 @@ self.addEventListener('message', function (e) {
     reader.onload = result => {
       count++;
       spark.append(result.target.result);
-      console.log(result);
+      // console.log(result);
       if (count === fileChunkList.length) {
         self.postMessage({
           percentage: 100,

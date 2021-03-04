@@ -37,7 +37,8 @@ $('#submit').addEventListener('click', async (e) => {
   if (!container.file) return;
   status = Status.uploading;
   const fileChunkList = createFileChunk(container.file);
-  container.hash = await calculateHash(fileChunkList);
+  // container.hash = await calculateHash(fileChunkList);
+  container.hash = await calculateHashByWorker(fileChunkList);
 
   console.log(container.hash, 222)
   const { shouldUpload, uploadedList, imgUrl } = await verifyUpload(
@@ -86,11 +87,29 @@ function createFileChunk(file, size = SIZE) {
   return fileChunkList;
 }
 
+function calculateHashByWorker(fileChunkList) {
+  return new Promise(resolve => {
+    const start = new Date();
+    container.worker = new Worker("./lib/hash.js");
+    container.worker.postMessage({ fileChunkList });
+    container.worker.onmessage = e => {
+      const { percentage, hash } = e.data;
+      if (hash) {
+        const end = new Date();
+        console.log((end - start) / 1000);
+        resolve(hash);
+      }
+    };
+  });
+}
+
+
 // 生成文件 hash
 function calculateHash(fileChunkList) {
   return new Promise(resolve => {
     let count = 0;
     const spark = new SparkMD5.ArrayBuffer();
+    const start = new Date();
     const loadNext = index => {
       const reader = new FileReader();
       reader.readAsArrayBuffer(fileChunkList[index].file);
@@ -102,6 +121,9 @@ function calculateHash(fileChunkList) {
         spark.append(e.target.result);
 
         if (count === fileChunkList.length) {
+          const end = new Date();
+
+          console.log((end - start) / 1000);
           resolve(spark.end());
         } else {
           loadNext(count);
@@ -158,8 +180,9 @@ async function uploadChunks(uploadedList = []) {
     // }
 
     // 并发请求
-    maxRequestLimit(tempRequestList, 10, (res) => {
+    maxRequestLimit(tempRequestList, 10, async (res) => {
       console.log('完成啦', res)
+      await mergeRequest();
     })
 }
 
